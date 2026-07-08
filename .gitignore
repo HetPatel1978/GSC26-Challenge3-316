@@ -1,0 +1,25 @@
+# data (document download steps in README instead of committing large files)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.csv
+*.parquet
+*.pkl
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# os
+.DS_Store
+Thumbs.db
+
+# secrets
+.env
+*.key
+credentials.json

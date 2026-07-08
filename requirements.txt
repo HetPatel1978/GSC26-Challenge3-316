@@ -1,0 +1,34 @@
+# core
+numpy
+pandas
+polars
+pyarrow
+scipy
+
+# ml
+scikit-learn
+xgboost
+lightgbm
+optuna
+
+# deep learning
+# install torch separately per your hardware, see README setup section:
+#   CPU only:  pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   CUDA GPU:  pip install torch --index-url https://download.pytorch.org/whl/cu124
+
+# time series
+statsmodels
+prophet
+stumpy
+
+# eval / viz
+matplotlib
+plotly
+seaborn
+
+# dashboard
+streamlit
+
+# utils
+tqdm
+pyyaml
