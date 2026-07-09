@@ -257,10 +257,11 @@ Production failure-prediction accuracy degrades over time as workloads change ("
 
 Priority-ranked for this challenge (best fit first):
 
-### 7.1 Google Cluster Trace (v3, 2019 release — "ClusterData2019")
-- ~29 days (2011 originally, restated/expanded in the 2019 v3 release) of production Borg cluster data across ~12.5k machines: job/task submission, scheduling, resource requests vs. actual usage, machine events (add/remove/failure), and **CPU/memory usage per task at 5-minute and 1-second granularity**. The v3 release also lines up with a companion **Google power/energy dataset**, letting you correlate compute load with power draw — a distinctive angle if you want a power/thermal-adjacent story.
-- **Why it's #1 for you**: has explicit machine failure/maintenance events *and* task exit-type labels (finished/failed/killed/evicted) — i.e., real ground-truth labels for both hardware failure and task failure prediction, at genuine hyperscale. Best-documented, most cited in prior competition-style work, huge community tooling (BigQuery public dataset access, published analysis scripts).
-- Source: `github.com/google/cluster-data`.
+### 7.1 Google Cluster Trace — **v2 (2011-2) chosen as primary; see `data/README.md` for the actual decision record**
+- **v2 (2011-2)**: 29 days, ~12.5k machines, one Borg cell, plain gzip-CSV, **~41GB compressed total**, publicly downloadable over HTTPS with no Google account or gcloud SDK required (confirmed 2026-07-08 — bucket `clusterdata-2011-2` is anonymously readable via the GCS JSON API). Tables: `job_events`, `task_events` (has EVICT/FAIL/KILL/LOST event-type labels), `task_constraints`, `machine_events` (ADD/REMOVE/UPDATE — hardware failure/maintenance labels), `machine_attributes`, and `task_usage` (the actual resource-usage time series: CPU rate, memory, disk I/O, page cache, cycles-per-instruction, at ~5-min granularity). This is also the exact dataset used in the published Bi-LSTM task/job-failure-prediction work cited in §9 (~87-93% accuracy) — giving a direct literature comparison point.
+- **v3 (2019)**: 8 cells, ~2.4TB compressed, JSON with nested CPU-usage histograms, companion power/energy dataset. Richer (GPU/power angle) but requires BigQuery or gsutil-based partial downloads at real scale — a good **stretch/secondary** target if the v2 pipeline is solid early, not a safe primary for a solo 4-week local-data build.
+- **Practical takeaway**: v2's `task_usage` table is ~45GB decompressed across 500 hash-partitioned shards (~90MB compressed each); pulling a subset of shards (e.g. 20/500) gives a random ~4% sample of tasks spanning the *full* 29-day period (not a time-truncated slice), which is exactly the kind of scoping cut worth stating explicitly in the report per §8.3.
+- Source: `github.com/google/cluster-data` (see `ClusterData2011_2.md` and `ClusterData2019.md` in that repo for the respective format docs).
 
 ### 7.2 Alibaba Cluster Trace(s)
 - **cluster-trace-v2018** — 8 days, ~4000 machines, co-located online services + batch jobs, machine-level CPU/mem/disk/net usage + container resource requests — good for the "noisy neighbor / overcommit" story (§3.2).

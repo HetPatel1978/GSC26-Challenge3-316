@@ -55,6 +55,11 @@ pip install -r requirements.txt
 # then install torch per your hardware (see requirements.txt comment)
 ```
 
+Confirmed working on this machine: RTX 5060 Laptop GPU (Blackwell, sm_120) requires
+the `cu128` torch build — `cu124` installs but throws "no kernel image available."
+
 ## Status
 
-Week 0 (prep) — repo scaffolding in progress. See `docs/02-IMPLEMENTATION-PLAN.md` for the current milestone.
+Week 0 (prep) — repo scaffolded, `.venv` created with core stack + GPU-enabled torch
+verified, Google Cluster Trace 2011-2 subset downloaded (~27GB, see `data/README.md`).
+Next: Week 1 EDA. See `docs/02-IMPLEMENTATION-PLAN.md` for the current milestone.

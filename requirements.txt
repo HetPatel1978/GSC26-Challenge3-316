@@ -13,8 +13,10 @@ optuna
 
 # deep learning
 # install torch separately per your hardware, see README setup section:
-#   CPU only:  pip install torch --index-url https://download.pytorch.org/whl/cpu
-#   CUDA GPU:  pip install torch --index-url https://download.pytorch.org/whl/cu124
+#   CPU only:        pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   CUDA GPU (most): pip install torch --index-url https://download.pytorch.org/whl/cu124
+#   RTX 50-series / Blackwell (sm_120), e.g. RTX 5060: needs cu128+
+#                    pip install torch --index-url https://download.pytorch.org/whl/cu128
 
 # time series
 statsmodels

@@ -24,7 +24,7 @@ You don't need to wait for the window to open to think — you can prep repo sca
 
 | Decision | Recommendation | Rationale |
 |---|---|---|
-| Primary dataset | **Google Cluster Trace v3 (2019)** | Best-documented, largest community precedent, has both machine-failure and task-failure labels, defensible choice a judge will recognize |
+| Primary dataset | **Google Cluster Trace v2 (2011-2)** — downloaded 2026-07-08, ~27GB on disk in `data/raw/google_cluster_2011/` | Publicly downloadable via plain HTTPS (no BigQuery/gcloud needed), has both machine-failure and task-failure labels, and is the exact trace used in prior Bi-LSTM failure-prediction papers (direct literature comparison). v3 (2019) kept as a documented stretch option — see `data/README.md` |
 | Secondary/stretch dataset | **Backblaze SMART disk data** | Clean, well-labeled, cheap to bolt on, gives you a second distinct failure-prediction narrative (§7.5/§7 recommendation) |
 | Core problem framing | Binary "failure/degradation in next Δ" classification, Δ chosen per §4.5 (start with 30 min) | Most tractable in 4 weeks, still supports lead-time reporting |
 | Anomaly detection stack | Isolation Forest + LSTM-Autoencoder (+ STL/EWMA statistical baseline) | Reliable, fast to implement, strong ablation contrast |
