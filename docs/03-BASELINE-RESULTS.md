@@ -117,3 +117,42 @@ failure — an unobserved gap, not a real "advance warning" — producing lead
 times up to 25,000+ minutes that swamped the distribution. Restricting to
 the 28,620-task population with a genuine labeled positive window (matching
 the confusion matrix exactly) fixed this.
+
+## Machine-level failure prediction
+
+A second, parallel prediction target: instead of "will this *task* fail,"
+"will this *machine* receive a `REMOVE` event (hardware failure/
+decommission) in the next 30 minutes." Built with
+`src/features/machine_features.py` (30-min windows of aggregate task
+activity per machine — summed/mean CPU & memory, task count, disk I/O, a
+task-churn feature counting EVICT/FAIL/KILL events among tasks scheduled on
+that machine) and `src/models/machine_xgboost.py` (same modeling recipe as
+the task-level XGBoost: time-based split, undersampled train, F1-tuned
+threshold, early stopping).
+
+- **Scale**: 6,016,863 window-rows, 12,558 machines, only 2,103 positive
+  windows (0.035% base rate) — machine failures are far rarer than task
+  failures in this trace (8,957 `REMOVE` events total vs. 13.8M task
+  `FAIL` events), so this is a much sparser learning problem: 1,701 train /
+  402 test positives, vs. task-level's ~96k / 28,620.
+
+| Model | Precision | Recall | F1 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| Machine XGBoost | 0.0008 | 0.154 | 0.0015 | 0.622 | 0.0007 |
+
+- **Reading this**: ROC-AUC 0.62 is real signal (well above the 0.5
+  random line) but far weaker than the task-level model's 0.91 — expected,
+  given ~13x fewer positive examples to learn from and a label (hardware
+  failure/decommission) that's plausibly driven by physical factors
+  (age, thermal history) this feature set can't see at all. PR-AUC (0.0007)
+  is only ~2x the 0.00035 base rate, vs. task-level XGBoost's ~23x lift.
+  **`churn_events` and `disk_io_mean` are the top two features** —
+  directly validating the EDA's "elevated task churn precedes machine
+  REMOVE" finding (`notebooks/EDA_FINDINGS.md`, load-before-REMOVE worked
+  example) with an actual trained model rather than just the one manually
+  found example.
+- Not merged into the main 4-model comparison table above since it predicts
+  a different target on a different label universe; full metrics (confusion
+  matrix, feature importances) tracked separately under the
+  `machine_xgboost` key in `data/processed/model_metrics.json` (gitignored
+  — regenerate with `python src/models/machine_xgboost.py`).
