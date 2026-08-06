@@ -74,3 +74,46 @@ copy `results/model_metrics.json`.
 - PR-AUC is the metric to watch for model comparison, not accuracy/ROC-AUC
   alone — at this base rate accuracy is trivially ~99.8% even for a
   do-nothing classifier.
+
+## Lead-time analysis
+
+`src/eval/lead_time.py` asks a different question than the window-level
+confusion matrix above: not "was this specific 30-min window flagged
+correctly" but "did we ever warn about this failure before it happened, and
+how far in advance?" — using the XGBoost model, for every test-period task
+with an observed imminent-failure window (the same 28,620-task population
+behind the results table's `n_positive`), it finds the *first* window
+(chronologically, not necessarily the labeled one) where predicted
+probability crossed the tuned threshold, strictly before the actual `FAIL`.
+
+| | |
+|---|---|
+| Test-period failures | 28,620 |
+| Detected with advance warning | 8,383 (29.3%) |
+| Median lead time | 26.8 min |
+| Mean lead time | 69.2 min |
+| P25 / P75 | 9.6 / 44.2 min |
+| Max | 2,619.6 min (~43.7h) |
+
+![Lead time distribution](results/plots/lead_time_distribution.png)
+
+Detection rate (29.3%) is a few points above the window-level recall
+(26.2%) because a task counts as "detected" here if *any* window before its
+failure crossed the threshold, not just the specific 30-min-out window —
+slightly more generous, and arguably the more operationally relevant
+number (an ops team doesn't care which window raised the pager, just that
+one did, and how much runway they got). The long right tail (a handful of
+detections beyond 500 minutes) comes from tasks with a genuine early
+resource-usage ramp well before the 30-minute label horizon — the same
+phenomenon as the EDA sawtooth memory-leak example.
+
+**Methodological note**: an earlier version of this analysis counted *any*
+task with `fail_time` after the test cutoff as a "test-period failure"
+(166,061 of them) rather than restricting to tasks with an actual observed
+pre-failure window. Since `fail_time` is looked up from the full 29-day
+trace while usage data only has continuous coverage through day 10, that
+swept in tasks whose last observed window was days before their eventual
+failure — an unobserved gap, not a real "advance warning" — producing lead
+times up to 25,000+ minutes that swamped the distribution. Restricting to
+the 28,620-task population with a genuine labeled positive window (matching
+the confusion matrix exactly) fixed this.

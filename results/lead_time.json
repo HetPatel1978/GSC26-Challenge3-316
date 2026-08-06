@@ -1,0 +1,15 @@
+{
+  "model": "xgboost",
+  "threshold": 0.35000000000000003,
+  "n_test_period_failures": 28620,
+  "n_detected_with_advance_warning": 8383,
+  "detection_rate": 0.2929,
+  "lead_time_minutes": {
+    "mean": 69.21,
+    "median": 26.75,
+    "min": 0.06,
+    "max": 2619.64,
+    "p25": 9.55,
+    "p75": 44.24
+  }
+}
