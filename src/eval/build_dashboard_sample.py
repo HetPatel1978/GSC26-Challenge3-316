@@ -134,7 +134,7 @@ def main():
         "time", "job_id", "task_index", "event_type",
         "cpu_request", "memory_request", "disk_space_request", "scheduling_class", "priority",
     )
-    with open(REPO_ROOT / "models" / "xgboost.pkl", "rb") as f:
+    with open(REPO_ROOT / "models" / "xgboost_tuned.pkl", "rb") as f:
         xgb_model = pickle.load(f)
 
     machines = pick_sample_machines()
