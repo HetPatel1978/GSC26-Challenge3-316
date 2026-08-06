@@ -6,14 +6,15 @@ predicting whether the task fails in the 30 minutes after the most recent
 window -- same label definition as the other models.
 
 Scale note: building fixed-length lag sequences for all 66.6M window-rows
-via a per-task shift is a >20GB intermediate (SEQ_LEN x 17 features x 66.6M
-rows), too large for this machine. Instead we bound the task universe: every
-task that ever has a positive window, plus a random sample of
-NEG_TASK_RATIO x as many negative-only tasks, then build sequences from
-*all* windows of just those tasks. This means the LSTM's test set is a
-(large, but not 100%) subsample of the tasks the tabular models are scored
-on -- noted here and in docs/03-BASELINE-RESULTS.md rather than silently
-treated as identical.
+via a per-task shift in one shot is a >20GB intermediate (SEQ_LEN x 17
+features x 66.6M rows), too large for this machine. Training stays bounded
+to a task subsample for tractability: every task that ever has a positive
+window, plus NEG_TASK_RATIO x as many random negative-only tasks. Final
+*evaluation*, however, now covers the FULL test-period task universe (all
+~8.2M tasks, matching the tabular models' test scope exactly) by chunking
+over task groups -- each chunk's lag sequences are built, scored, and
+discarded before the next chunk, so peak memory stays bounded regardless of
+total task count. See evaluate_full_test_set() below.
 
 Tasks with fewer than SEQ_LEN preceding windows are zero-padded at the
 start of the sequence (a simplification -- no explicit padding mask is fed
@@ -89,6 +90,42 @@ def predict_proba_batched(model: nn.Module, X: torch.Tensor, batch_size: int = 8
     return np.concatenate(out)
 
 
+def evaluate_full_test_set(
+    model: nn.Module, df: pl.DataFrame, cutoff: float, mu: np.ndarray, sigma: np.ndarray,
+    device: str, chunk_size_tasks: int = 400_000, batch_size: int = 8192,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Score every task in the full universe (not just the training subsample)
+    on its test-period windows, chunked over task groups so peak memory
+    stays bounded regardless of total task count -- each chunk's lag
+    sequences are built, scored, and discarded before the next chunk.
+    """
+    all_tasks = df.select(["job_id", "task_index"]).unique()
+    n_tasks = all_tasks.height
+    y_true_chunks, y_score_chunks = [], []
+
+    for start in range(0, n_tasks, chunk_size_tasks):
+        chunk_tasks = all_tasks.slice(start, chunk_size_tasks)
+        sub = df.join(chunk_tasks, on=["job_id", "task_index"], how="inner")
+        seq_sub = build_sequences(sub)
+        test_sub = seq_sub.filter(pl.col("window_end") > cutoff)
+        if test_sub.height == 0:
+            continue
+
+        X = to_tensor(test_sub)
+        X = (X - mu) / sigma
+        Xt = torch.tensor(X, device=device)
+        proba = predict_proba_batched(model, Xt, batch_size)
+
+        y_true_chunks.append(test_sub["label_fail_soon"].to_numpy())
+        y_score_chunks.append(proba)
+        del sub, seq_sub, test_sub, X, Xt
+        print(f"  chunk {start:,}-{start + chunk_tasks.height:,} / {n_tasks:,} tasks "
+              f"-> {len(proba):,} test windows scored")
+
+    return np.concatenate(y_true_chunks), np.concatenate(y_score_chunks)
+
+
 class LSTMClassifier(nn.Module):
     def __init__(self, n_features: int, hidden: int = 64):
         super().__init__()
@@ -105,18 +142,17 @@ def main():
     print(f"device: {device}")
 
     print("loading features ...")
-    df = pl.read_parquet(FEATURES_PATH)
-    medians = {c: df[c].median() for c in NULLABLE_COLS}
-    df = df.with_columns([pl.col(c).fill_null(v) for c, v in medians.items()])
+    df_full = pl.read_parquet(FEATURES_PATH)
+    medians = {c: df_full[c].median() for c in NULLABLE_COLS}
+    df_full = df_full.with_columns([pl.col(c).fill_null(v) for c, v in medians.items()])
 
-    cutoff = df["window_end"].quantile(0.8)
+    cutoff = df_full["window_end"].quantile(0.8)
 
-    df = select_task_subset(df)
-    print("building lag sequences ...")
-    seq_df = build_sequences(df)
+    df_sub = select_task_subset(df_full)
+    print("building lag sequences (training subsample) ...")
+    seq_df = build_sequences(df_sub)
 
     train_df = seq_df.filter(pl.col("window_end") <= cutoff)
-    test_df = seq_df.filter(pl.col("window_end") > cutoff)
 
     pos = train_df.filter(pl.col("label_fail_soon") == 1)
     neg = train_df.filter(pl.col("label_fail_soon") == 0)
@@ -124,20 +160,16 @@ def main():
     neg_sampled = neg.sample(n=n_neg_keep, seed=SEED)
     train_bal = pl.concat([pos, neg_sampled]).sample(fraction=1.0, seed=SEED, shuffle=True)
 
-    print(f"train sequences: {train_bal.height:,} ({pos.height:,} pos / {n_neg_keep:,} neg) | "
-          f"test sequences: {test_df.height:,} ({int(test_df['label_fail_soon'].sum()):,} pos)")
+    print(f"train sequences: {train_bal.height:,} ({pos.height:,} pos / {n_neg_keep:,} neg)")
 
     X_train = to_tensor(train_bal)
     y_train = train_bal["label_fail_soon"].to_numpy().astype(np.float32)
-    X_test = to_tensor(test_df)
-    y_test = test_df["label_fail_soon"].to_numpy().astype(np.float32)
 
     # standardize using train statistics (flatten over time steps)
     flat = X_train.reshape(-1, X_train.shape[-1])
     mu, sigma = flat.mean(axis=0), flat.std(axis=0)
     sigma[sigma == 0] = 1e-6
     X_train = (X_train - mu) / sigma
-    X_test = (X_test - mu) / sigma
 
     rng = np.random.default_rng(SEED)
     idx = rng.permutation(len(X_train))
@@ -148,7 +180,6 @@ def main():
     yt_fit = torch.tensor(y_train[fit_idx], device=device)
     Xt_val = torch.tensor(X_train[val_idx], device=device)
     yt_val = torch.tensor(y_train[val_idx], device=device)
-    Xt_test = torch.tensor(X_test, device=device)
 
     model = LSTMClassifier(len(FEATURE_COLS)).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -197,10 +228,14 @@ def main():
             best_f1, best_t = f1, t
     print(f"tuned threshold (max train F1): {best_t:.2f} (train F1={best_f1:.4f})")
 
-    test_proba = predict_proba_batched(model, Xt_test)
-    y_pred = (test_proba >= best_t).astype(int)
+    del Xt_fit, Xt_val, X_train  # free GPU/host memory before the full-scale eval pass
+    torch.cuda.empty_cache() if device == "cuda" else None
 
-    metrics = summarize(y_test.astype(int), y_pred, test_proba)
+    print("evaluating on the FULL test-period task universe (chunked, matches tabular models' scope) ...")
+    y_test_full, test_proba_full = evaluate_full_test_set(model, df_full, cutoff, mu, sigma, device)
+    y_pred = (test_proba_full >= best_t).astype(int)
+
+    metrics = summarize(y_test_full.astype(int), y_pred, test_proba_full)
     print_metrics("lstm", metrics)
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -213,9 +248,10 @@ def main():
     save_result("lstm", metrics, extra={
         "threshold": float(best_t), "seq_len": SEQ_LEN,
         "n_train_tasks_subsample_ratio": NEG_TASK_RATIO,
-        "note": "trained/evaluated on a task subsample (all positive-containing tasks + "
-                f"{NEG_TASK_RATIO}x random negative-only tasks), not the full task universe "
-                "the tabular models use -- see docs/03-BASELINE-RESULTS.md",
+        "note": f"trained on a task subsample (all positive-containing tasks + "
+                f"{NEG_TASK_RATIO}x random negative-only tasks) for memory tractability, but "
+                "evaluated on the FULL test-period task universe (chunked scoring) -- same "
+                "test scope as the tabular models, see docs/03-BASELINE-RESULTS.md",
         "cutoff_window_end_us": int(cutoff),
     })
 

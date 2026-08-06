@@ -25,10 +25,10 @@
   },
   "lstm": {
     "label": "LSTM",
-    "precision": 0.0582,
-    "recall": 0.1789,
-    "f1": 0.0879,
-    "roc_auc": 0.8587,
-    "pr_auc": 0.0569
+    "precision": 0.0239,
+    "recall": 0.2298,
+    "f1": 0.0432,
+    "roc_auc": 0.8725,
+    "pr_auc": 0.0264
   }
 }

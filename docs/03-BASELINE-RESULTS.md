@@ -1,4 +1,4 @@
-# Baseline Results — Aug 4-5
+# Model Results — Task Failure Prediction
 
 ## Task definition
 
@@ -20,6 +20,12 @@ Predict, from a task's resource-usage history, whether it will receive a
   undersampled to a 20:1 negative:positive ratio; test is left at its
   natural imbalance (0.22% positive) so metrics reflect real deployment
   conditions.
+- **LSTM scope**: trained on a task subsample (all failing tasks + 10x as
+  many random non-failing tasks — full-scale lag-sequence construction for
+  training is a >20GB intermediate) but *evaluated* on the full test-period
+  task universe via chunked scoring (`evaluate_full_test_set()` in
+  `src/models/lstm_model.py`) — same 13,263,258-row test set as the other
+  3 models, so all 4 are directly comparable.
 
 ## Results
 
@@ -27,28 +33,44 @@ Predict, from a task's resource-usage history, whether it will receive a
 |---|---|---|---|---|---|
 | Z-score anomaly (unsupervised) | 0.0007 | 0.069 | 0.0014 | 0.362 | 0.0015 |
 | Logistic regression (supervised) | 0.008 | 0.588 | 0.016 | 0.791 | 0.0055 |
+| XGBoost | 0.033 | 0.262 | 0.058 | 0.911 | 0.051 |
+| LSTM | 0.024 | 0.230 | 0.043 | 0.873 | 0.026 |
 
-Full metrics (confusion matrix, tuned threshold, feature coefficients) in
-`data/processed/model_metrics.json` (gitignored — regenerate with
-`python src/models/anomaly/zscore_baseline.py` and
-`python src/models/prediction/logreg_baseline.py`).
+Full metrics (confusion matrix, tuned threshold, feature coefficients/
+importances) in `data/processed/model_metrics.json` (gitignored — rerun the
+model scripts in `src/models/` to regenerate) and the git-tracked trimmed
+copy `results/model_metrics.json`.
 
 ## Reading the results
 
 - **Z-score baseline underperforms random (ROC-AUC 0.36)**: global z-scoring
   across ~8M tasks with wildly different resource scales is a weak signal —
   a task's own "normal" isn't the cluster's "normal". This is the honest
-  floor a naive unsupervised method sets, not a bug; per-task or
-  per-scheduling-class normalization is a natural next step if pursued
-  further, but the sprint prioritizes moving to XGBoost/LSTM instead.
-- **Logistic regression is a real baseline (ROC-AUC 0.79)**: `mem_max` and
+  floor a naive unsupervised method sets, not a bug.
+- **Logistic regression (ROC-AUC 0.79)** is a real baseline: `mem_max` and
   `cpu_mean` are the strongest positive predictors (recent peak memory,
   rising CPU), matching the resource-exhaustion pattern found in EDA
   (`notebooks/EDA_FINDINGS.md`). Precision is low (0.008) because the task
   is extremely imbalanced (0.22% positive) and this model uses a single
-  fixed threshold with no per-task history — exactly what XGBoost (richer
-  feature interactions) and the LSTM (actual sequence memory) are expected
-  to improve on tomorrow.
+  fixed threshold with no per-task history.
+- **XGBoost is the strongest model overall (PR-AUC 0.051, ~23x the 0.0022
+  base rate)**. `scheduling_class` dominates feature importance, followed by
+  the resource-request columns — the model is largely learning "which kinds
+  of tasks fail" (workload class) more than "how usage is trending right
+  now," which is a useful finding in its own right (see
+  `results/model_metrics.json` → `xgboost.feature_importances`).
+- **LSTM's rank ordering is close to XGBoost's (ROC-AUC 0.873 vs 0.911) but
+  it loses clearly on PR-AUC/precision (0.026 vs 0.051) at the operating
+  threshold.** This is the *corrected*, full-test-set number —
+  an earlier version of this table evaluated the LSTM only on its training
+  task subsample and showed a misleadingly strong PR-AUC (0.057, beating
+  XGBoost); expanding evaluation to the full universe the other 3 models
+  are scored on dropped that to 0.026. That gap between "scores well on a
+  subsample" and "scores well on the full population" is itself a real
+  finding worth keeping in the write-up, not smoothing over: a fixed
+  4-timestep-history model trained on a curated subsample doesn't
+  automatically generalize as well as tree-based tabular features that see
+  every task's full context statically.
 - PR-AUC is the metric to watch for model comparison, not accuracy/ROC-AUC
   alone — at this base rate accuracy is trivially ~99.8% even for a
   do-nothing classifier.
