@@ -1,0 +1,34 @@
+{
+  "zscore_anomaly_baseline": {
+    "label": "Z-score (unsupervised)",
+    "precision": 0.0007,
+    "recall": 0.0692,
+    "f1": 0.0014,
+    "roc_auc": 0.3621,
+    "pr_auc": 0.0015
+  },
+  "logreg_baseline": {
+    "label": "Logistic Regression",
+    "precision": 0.0079,
+    "recall": 0.5882,
+    "f1": 0.0156,
+    "roc_auc": 0.7911,
+    "pr_auc": 0.0055
+  },
+  "xgboost": {
+    "label": "XGBoost",
+    "precision": 0.0328,
+    "recall": 0.2621,
+    "f1": 0.0584,
+    "roc_auc": 0.9105,
+    "pr_auc": 0.0514
+  },
+  "lstm": {
+    "label": "LSTM",
+    "precision": 0.0582,
+    "recall": 0.1789,
+    "f1": 0.0879,
+    "roc_auc": 0.8587,
+    "pr_auc": 0.0569
+  }
+}

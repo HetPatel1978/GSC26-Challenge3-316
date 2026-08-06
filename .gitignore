@@ -6,6 +6,11 @@ data/processed/*
 *.csv
 *.parquet
 *.pkl
+# small precomputed files the dashboard needs to run without the full local
+# dataset/model rerun -- exceptions to the blanket data-file rules above
+!data/dashboard_sample.parquet
+!data/dashboard_events.parquet
+!models/xgboost.pkl
 
 # python
 __pycache__/
