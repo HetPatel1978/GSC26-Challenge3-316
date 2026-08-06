@@ -34,6 +34,7 @@ Predict, from a task's resource-usage history, whether it will receive a
 | Z-score anomaly (unsupervised) | 0.0007 | 0.069 | 0.0014 | 0.362 | 0.0015 |
 | Logistic regression (supervised) | 0.008 | 0.588 | 0.016 | 0.791 | 0.0055 |
 | XGBoost | 0.033 | 0.262 | 0.058 | 0.911 | 0.051 |
+| **XGBoost (tuned)** | **0.081** | 0.240 | **0.122** | 0.893 | **0.068** |
 | LSTM | 0.024 | 0.230 | 0.043 | 0.873 | 0.026 |
 
 Full metrics (confusion matrix, tuned threshold, feature coefficients/
@@ -74,6 +75,37 @@ copy `results/model_metrics.json`.
 - PR-AUC is the metric to watch for model comparison, not accuracy/ROC-AUC
   alone — at this base rate accuracy is trivially ~99.8% even for a
   do-nothing classifier.
+
+## XGBoost hyperparameter tuning
+
+`src/models/tune_xgboost.py` runs a 12-trial random search (`n_estimators`,
+`max_depth`, `learning_rate`, `subsample`, `colsample_bytree`) with 3-fold
+stratified cross-validation, scored on PR-AUC, over the *same* time-based
+train split as the baseline XGBoost model (CV never touches the test set).
+The best config (`max_depth=8, learning_rate=0.215, subsample=0.988,
+colsample_bytree=0.840, n_estimators=408`, picked by CV PR-AUC 0.828) is
+refit with early stopping and evaluated once on the held-out test set.
+
+| | Precision | Recall | F1 | ROC-AUC | PR-AUC |
+|---|---|---|---|---|---|
+| XGBoost (baseline params) | 0.033 | 0.262 | 0.058 | 0.911 | 0.051 |
+| XGBoost (tuned) | 0.081 | 0.240 | 0.122 | 0.893 | 0.068 |
+| **Change** | **+145%** | −8% | **+110%** | −2% | **+33%** |
+
+Tuning is a real, broad-based win: **PR-AUC +33%, F1 +110%, precision
++145%**, at the cost of a small ROC-AUC dip (0.911→0.893) and a small
+recall dip (0.262→0.240) — a deliberate, favorable trade at this base rate,
+since precision was the baseline's weakest point (0.033, meaning ~97% of
+alerts were false alarms) and PR-AUC is the metric that matters most under
+0.22% class imbalance. Full trial log in `results/xgboost_tuning.json`.
+
+**Note on the CV numbers**: the per-trial CV PR-AUC scores above (0.79–0.83)
+look much higher than the final test PR-AUC (0.068) — this isn't a
+regression, it's because CV runs on the undersampled *train* split (~5%
+positive rate after the 20:1 undersampling) while the final evaluation runs
+on the test split's natural 0.22% imbalance. CV PR-AUC is only meaningful
+for *relative* ranking of hyperparameter configs, not as an absolute
+performance estimate.
 
 ## Lead-time analysis
 

@@ -24,17 +24,19 @@ JSON_COPY_PATH = REPO_ROOT / "results" / "model_metrics.json"
 
 # Fixed display order + a small categorical palette (never reassigned per
 # metric) so a model's color is stable across every chart in the report.
-MODEL_ORDER = ["zscore_anomaly_baseline", "logreg_baseline", "xgboost", "lstm"]
+MODEL_ORDER = ["zscore_anomaly_baseline", "logreg_baseline", "xgboost", "xgboost_tuned", "lstm"]
 MODEL_LABELS = {
     "zscore_anomaly_baseline": "Z-score\n(unsupervised)",
     "logreg_baseline": "Logistic\nRegression",
     "xgboost": "XGBoost",
+    "xgboost_tuned": "XGBoost\n(tuned)",
     "lstm": "LSTM",
 }
 MODEL_COLORS = {
     "zscore_anomaly_baseline": "#8a8f98",
     "logreg_baseline": "#3b6ea5",
     "xgboost": "#3ba55d",
+    "xgboost_tuned": "#2c7a43",
     "lstm": "#7a3ba5",
 }
 

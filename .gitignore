@@ -12,6 +12,7 @@ data/processed/*
 !data/dashboard_events.parquet
 !models/xgboost.pkl
 !models/machine_xgboost.pkl
+!models/xgboost_tuned.pkl
 
 # python
 __pycache__/
