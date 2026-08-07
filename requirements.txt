@@ -8,8 +8,6 @@ scipy
 # ml
 scikit-learn
 xgboost
-lightgbm
-optuna
 
 # deep learning
 # install torch separately per your hardware, see README setup section:
@@ -18,19 +16,8 @@ optuna
 #   RTX 50-series / Blackwell (sm_120), e.g. RTX 5060: needs cu128+
 #                    pip install torch --index-url https://download.pytorch.org/whl/cu128
 
-# time series
-statsmodels
-prophet
-stumpy
-
 # eval / viz
 matplotlib
-plotly
-seaborn
 
 # dashboard
 streamlit
-
-# utils
-tqdm
-pyyaml
