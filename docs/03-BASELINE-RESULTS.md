@@ -25,7 +25,7 @@ Predict, from a task's resource-usage history, whether it will receive a
   training is a >20GB intermediate) but *evaluated* on the full test-period
   task universe via chunked scoring (`evaluate_full_test_set()` in
   `src/models/lstm_model.py`) — same 13,263,258-row test set as the other
-  3 models, so all 4 are directly comparable.
+  4 models, so all 5 are directly comparable.
 
 ## Results
 
@@ -54,24 +54,28 @@ copy `results/model_metrics.json`.
   (`notebooks/EDA_FINDINGS.md`). Precision is low (0.008) because the task
   is extremely imbalanced (0.22% positive) and this model uses a single
   fixed threshold with no per-task history.
-- **XGBoost is the strongest model overall (PR-AUC 0.051, ~23x the 0.0022
-  base rate)**. `scheduling_class` dominates feature importance, followed by
-  the resource-request columns — the model is largely learning "which kinds
-  of tasks fail" (workload class) more than "how usage is trending right
-  now," which is a useful finding in its own right (see
-  `results/model_metrics.json` → `xgboost.feature_importances`).
-- **LSTM's rank ordering is close to XGBoost's (ROC-AUC 0.873 vs 0.911) but
-  it loses clearly on PR-AUC/precision (0.026 vs 0.051) at the operating
+- **XGBoost (untuned) is a large improvement over both baselines (PR-AUC
+  0.051, ~23x the 0.0022 base rate)**. `scheduling_class` dominates feature
+  importance, followed by the resource-request columns — the model is
+  largely learning "which kinds of tasks fail" (workload class) more than
+  "how usage is trending right now," which is a useful finding in its own
+  right (see `results/model_metrics.json` → `xgboost.feature_importances`).
+- **XGBoost (tuned) is the strongest model overall (PR-AUC 0.068, ~31x the
+  base rate)** — see the dedicated tuning section below for the search
+  methodology and the full before/after comparison.
+- **LSTM's rank ordering is competitive (ROC-AUC 0.873, between the two
+  XGBoost variants' 0.893–0.911) but it loses clearly on PR-AUC/precision
+  to both (0.026 vs. 0.051 untuned / 0.068 tuned) at the operating
   threshold.** This is the *corrected*, full-test-set number —
   an earlier version of this table evaluated the LSTM only on its training
   task subsample and showed a misleadingly strong PR-AUC (0.057, beating
-  XGBoost); expanding evaluation to the full universe the other 3 models
-  are scored on dropped that to 0.026. That gap between "scores well on a
-  subsample" and "scores well on the full population" is itself a real
-  finding worth keeping in the write-up, not smoothing over: a fixed
-  4-timestep-history model trained on a curated subsample doesn't
-  automatically generalize as well as tree-based tabular features that see
-  every task's full context statically.
+  the untuned XGBoost); expanding evaluation to the full universe the other
+  4 models are scored on dropped that to 0.026. That gap between "scores
+  well on a subsample" and "scores well on the full population" is itself a
+  real finding worth keeping in the write-up, not smoothing over: a fixed
+  6-timestep-history model (3 hours of lookback) trained on a curated
+  subsample doesn't automatically generalize as well as tree-based tabular
+  features that see every task's full context statically.
 - PR-AUC is the metric to watch for model comparison, not accuracy/ROC-AUC
   alone — at this base rate accuracy is trivially ~99.8% even for a
   do-nothing classifier.
@@ -183,7 +187,7 @@ threshold, early stopping).
   REMOVE" finding (`notebooks/EDA_FINDINGS.md`, load-before-REMOVE worked
   example) with an actual trained model rather than just the one manually
   found example.
-- Not merged into the main 4-model comparison table above since it predicts
+- Not merged into the main 5-model comparison table above since it predicts
   a different target on a different label universe; full metrics (confusion
   matrix, feature importances) tracked separately under the
   `machine_xgboost` key in `data/processed/model_metrics.json` (gitignored

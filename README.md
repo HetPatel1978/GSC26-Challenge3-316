@@ -107,7 +107,7 @@ raw CSVs ─▶ typed parquet ─▶ EDA ─▶ 30-min sliding-window features �
      early stopping — **+33% PR-AUC** over the untuned baseline.
    - `src/models/lstm_model.py` — sequence model over the last 6 windows (3h) per task,
      trained on GPU. Trained on a task subsample (memory-bounded), but *evaluated* on the
-     full test-period task universe via chunked scoring — same scope as the other 4 models.
+     full test-period task universe via chunked scoring — same scope as the other 4 task-failure models.
 6. **Machine-failure model** (`src/models/machine_xgboost.py`): same recipe applied to the
    machine-level `REMOVE` target — a second, much sparser prediction problem, tracked
    separately (see `docs/03-BASELINE-RESULTS.md`).
