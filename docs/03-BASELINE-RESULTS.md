@@ -154,6 +154,32 @@ times up to 25,000+ minutes that swamped the distribution. Restricting to
 the 28,620-task population with a genuine labeled positive window (matching
 the confusion matrix exactly) fixed this.
 
+## Concept-drift check
+
+`src/eval/concept_drift.py` splits the test period into 3 equal-width time
+bins and scores the tuned XGBoost model on each *with its threshold fixed*
+(not re-tuned per bin — a deployed model doesn't get to re-calibrate
+itself), to check whether performance decays the further out it scores
+from the training cutoff.
+
+| Bin | Day range | Rows | Positives | ROC-AUC | PR-AUC | Precision | Recall | F1 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 8.15–8.78 | 4,065,864 | 9,000 | 0.872 | 0.063 | 0.062 | 0.154 | 0.089 |
+| 2 | 8.78–9.41 | 4,479,136 | 8,340 | 0.919 | 0.050 | 0.053 | 0.183 | 0.083 |
+| 3 | 9.41–10.04 | 4,718,258 | 11,280 | 0.898 | 0.094 | 0.119 | 0.350 | 0.177 |
+
+![Concept drift](results/plots/concept_drift.png)
+
+**No decay observed — if anything, performance improves slightly further
+into the test period** (ROC-AUC +0.026, PR-AUC +0.031 from bin 1 to bin 3).
+This is a genuinely useful negative result: over the ~2-day test window
+available in this trace, the model doesn't need periodic retraining to stay
+useful. The caveat is honest scope, not spin: 2 days is a short horizon to
+call "no drift" definitively — a production deployment would want this
+check re-run over weeks/months, and the improvement in bin 3 could just as
+easily be sampling variance (11,280 vs. 9,000 positives) as a real trend.
+Full numbers in `results/concept_drift.json`.
+
 ## Machine-level failure prediction
 
 A second, parallel prediction target: instead of "will this *task* fail,"

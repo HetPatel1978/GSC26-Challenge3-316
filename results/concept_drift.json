@@ -1,0 +1,67 @@
+{
+  "model": "xgboost_tuned",
+  "threshold": 0.4,
+  "n_bins": 3,
+  "bins": [
+    {
+      "bin": 1,
+      "day_range": [
+        8.15,
+        8.78
+      ],
+      "n_rows": 4065864,
+      "n_positive": 9000,
+      "precision": 0.0621,
+      "recall": 0.1542,
+      "f1": 0.0886,
+      "tp": 1388,
+      "fp": 20956,
+      "fn": 7612,
+      "tn": 4035908,
+      "n_test": 4065864,
+      "roc_auc": 0.8719,
+      "pr_auc": 0.0633
+    },
+    {
+      "bin": 2,
+      "day_range": [
+        8.78,
+        9.41
+      ],
+      "n_rows": 4479136,
+      "n_positive": 8340,
+      "precision": 0.0532,
+      "recall": 0.1832,
+      "f1": 0.0825,
+      "tp": 1528,
+      "fp": 27196,
+      "fn": 6812,
+      "tn": 4443600,
+      "n_test": 4479136,
+      "roc_auc": 0.9191,
+      "pr_auc": 0.0496
+    },
+    {
+      "bin": 3,
+      "day_range": [
+        9.41,
+        10.04
+      ],
+      "n_rows": 4718258,
+      "n_positive": 11280,
+      "precision": 0.1188,
+      "recall": 0.3498,
+      "f1": 0.1773,
+      "tp": 3946,
+      "fp": 29277,
+      "fn": 7334,
+      "tn": 4677701,
+      "n_test": 4718258,
+      "roc_auc": 0.8979,
+      "pr_auc": 0.0939
+    }
+  ],
+  "roc_auc_drift_last_minus_first": 0.026,
+  "pr_auc_drift_last_minus_first": 0.0306,
+  "verdict": "improves over time"
+}
