@@ -6,6 +6,30 @@ Reference: see `01-DEEP-DIVE.md` for the technical background behind every decis
 
 ---
 
+## What we cut and why
+
+This plan was written for the full 4-week window. Actual model-building work happened
+in a compressed sprint (Aug 4-7), which forced real scope cuts against the list below.
+Recorded here explicitly, per this doc's own §0 principle ("one primary dataset done
+excellently beats two datasets done shallowly") — these are prioritization calls, not
+things that were attempted and failed:
+
+| Planned | Status | Why |
+|---|---|---|
+| Isolation Forest | **Cut** | The z-score baseline already fills the "simple unsupervised floor" role in the model comparison (and honestly underperforms — see `docs/03-BASELINE-RESULTS.md`); a second unsupervised method would have added another weak baseline, not new signal, for the time it cost. |
+| LSTM-Autoencoder | **Cut** | Built a supervised LSTM classifier instead (`src/models/lstm_model.py`) — it fills the "deep learning comparison point" role the plan wanted, and directly optimizes the actual target (failure prediction) rather than a reconstruction-error proxy for it. |
+| Two-stage hybrid (unsupervised score as a supervised feature) | **Cut** | Given the z-score baseline scores *below random* (ROC-AUC 0.36), feeding it into XGBoost as an extra feature was unlikely to help and wasn't worth the time against higher-value work (tuning, lead-time analysis, a second prediction target). |
+| Ablation table | **Added** (`src/eval/ablation.py`, `results/ablation_table.md`) — cut initially under time pressure, added back once the core pipeline (5 models + tuning) was solid. |
+| Concept-drift check | **Added** (`src/eval/concept_drift.py`) — same as above. |
+| Cost-based metric | **Added** — a paragraph in `docs/03-BASELINE-RESULTS.md` and the README framing the operating threshold as a deliberate precision/recall trade, not a full cost-matrix simulation (no real incident-cost data available for this trace). |
+| F-beta / false-alarms-per-machine-day | **Cut** | Standardized on precision/recall/F1/ROC-AUC/PR-AUC across every model instead — one consistent metric set beats a superset partially reported. |
+| TranAD (stretch) | **Cut** | Was scoped as stretch-only from the start (§1); never became load-bearing to any result. |
+| Backblaze secondary dataset (stretch) | **Cut** | Also stretch-only from the start; the Google Cluster Trace alone supports two distinct prediction targets (task-level and machine-level), which is where the second-dataset time went instead. |
+| LightGBM | **Cut** | XGBoost was sufficient as the tree-based model; running both would have doubled tuning time for a result the literature says is usually a wash. |
+| Demo video | **Cut** | The Streamlit dashboard (`app/dashboard.py`, Overview + Live Simulation tabs) is the demo artifact instead — interactive beats a recording. |
+
+---
+
 ## 0. What "winning" actually requires (design targets, not just a checklist)
 
 A judge is comparing you against other solo/team entries that will mostly do: download one dataset, run Isolation Forest or an LSTM, report accuracy, ship a notebook. To place top-5, you need to clearly exceed that on **3 axes**:
