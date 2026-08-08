@@ -80,6 +80,33 @@ copy `results/model_metrics.json`.
   alone — at this base rate accuracy is trivially ~99.8% even for a
   do-nothing classifier.
 
+## Reading precision as a cost trade-off, not a weakness
+
+8.1% precision at the tuned operating threshold means roughly 11 false
+alerts for every true one. Read on its own, that sounds bad. Read against
+what each kind of mistake actually costs in a data-center context, it's a
+defensible operating point rather than a limitation to apologize for:
+
+- **A false positive** costs an on-call engineer a glance at a dashboard —
+  seconds, no downstream effect, easily absorbed at reasonable alert volume.
+- **A false negative** (a missed failure) means unplanned task downtime, a
+  potential SLA violation, and cascading rescheduling load on the cluster
+  as the scheduler recovers — the actual outcome this whole project exists
+  to prevent.
+
+At this threshold, the model catches 24.0% of imminent-failure windows
+exactly, and — per the [lead-time analysis](#lead-time-analysis) — gives
+**29.3% of held-out failures a median 26.8 minutes of advance warning**.
+If even a fraction of those warnings let an operator drain a task, migrate
+a job, or pre-provision a replacement before impact, the false-alarm volume
+is easily justified: one prevented outage plausibly offsets thousands of
+seconds-cost false alerts. This project doesn't have real incident-cost
+data to build a formal cost matrix (dollars-per-outage, dollars-per-alert)
+— that would be the natural next step to pick the operating threshold
+*from the cost model* rather than from F1 — but the qualitative asymmetry
+is exactly why PR-AUC/recall at a chosen threshold is the right thing to
+optimize here, not a "high precision" vanity number.
+
 ## XGBoost hyperparameter tuning
 
 `src/models/tune_xgboost.py` runs a 12-trial random search (`n_estimators`,

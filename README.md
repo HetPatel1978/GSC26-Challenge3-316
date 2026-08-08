@@ -146,6 +146,14 @@ a large precision/F1 gain — a good trade under this much imbalance. Full inter
 including why the LSTM's numbers changed after a scope-correction bug fix and the
 hyperparameter search details: [`docs/03-BASELINE-RESULTS.md`](docs/03-BASELINE-RESULTS.md).
 
+**On the 8.1% precision**: read in isolation that looks weak, but weigh it against what each
+mistake actually costs. A false positive costs an engineer a glance at a dashboard; a false
+negative is an unplanned outage. At this threshold the model gives **29.3% of held-out
+failures a median 26.8 minutes of advance warning** — one prevented outage plausibly
+justifies thousands of seconds-cost false alerts, which is why recall/PR-AUC at a chosen
+threshold is the right thing to optimize here, not precision as a standalone number. Full
+cost-framing discussion: [`docs/03-BASELINE-RESULTS.md`](docs/03-BASELINE-RESULTS.md#reading-precision-as-a-cost-trade-off-not-a-weakness).
+
 ## Lead-time analysis
 
 Of the 28,620 test-period task failures with an observed imminent-failure window, the tuned
