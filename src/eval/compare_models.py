@@ -61,8 +61,14 @@ def main():
     print(table_md)
     print(f"\nWrote {TABLE_PATH}")
 
-    trimmed = {m: {"label": MODEL_LABELS[m].replace("\n", " "), **{c: results[m].get(c) for c in cols}}
-               for m in models}
+    trimmed = {
+        m: {
+            "label": MODEL_LABELS[m].replace("\n", " "),
+            **{c: results[m].get(c) for c in cols},
+            "threshold": results[m].get("threshold"),
+        }
+        for m in models
+    }
     JSON_COPY_PATH.write_text(json.dumps(trimmed, indent=2), encoding="utf-8")
     print(f"Wrote {JSON_COPY_PATH}")
 

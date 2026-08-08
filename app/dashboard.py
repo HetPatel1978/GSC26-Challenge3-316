@@ -45,6 +45,11 @@ def load_data():
 
 sample, events, metrics = load_data()
 
+# Sourced from the tuned model's own saved threshold (results/model_metrics.json,
+# written by src/eval/compare_models.py) rather than hardcoded, so this can't
+# silently drift out of sync if the model is retuned/retrained.
+ALERT_THRESHOLD = (metrics or {}).get("xgboost_tuned", {}).get("threshold", 0.5)
+
 st.title("Data-Center Resource Usage & Failure Prediction")
 st.caption(
     "Google Cluster Trace 2011-2 — task/machine resource usage, engineered 30-min-window "
@@ -160,7 +165,7 @@ with tab_sim:
             m2.metric("Summed memory", f"{latest['mem_sum']:.4f}")
             m3.metric("Tasks running", int(latest["n_tasks"]))
             m4.metric("Predicted risk", f"{latest['max_predicted_risk']:.3f}",
-                      delta="ALERT" if latest["max_predicted_risk"] >= 0.40 else None,
+                      delta="ALERT" if latest["max_predicted_risk"] >= ALERT_THRESHOLD else None,
                       delta_color="inverse")
         else:
             m1.metric("Summed CPU rate", "n/a")
@@ -184,7 +189,8 @@ with tab_sim:
         axes[0].set_title("Resource usage (revealed up to slider position)")
 
         axes[1].plot(visible["trace_day"], visible["max_predicted_risk"], color=RISK_COLOR, lw=1.3)
-        axes[1].axhline(0.40, color="gray", ls="--", lw=0.8, label="XGBoost (tuned) alert threshold")
+        axes[1].axhline(ALERT_THRESHOLD, color="gray", ls="--", lw=0.8,
+                        label=f"XGBoost (tuned) alert threshold ({ALERT_THRESHOLD:.2f})")
         axes[1].set_xlim(day_min, day_max)
         axes[1].set_ylim(0, 1)
         axes[1].set_ylabel("predicted risk", color=RISK_COLOR)
