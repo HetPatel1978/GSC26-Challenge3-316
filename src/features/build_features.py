@@ -36,12 +36,21 @@ PROC = REPO_ROOT / "data" / "processed"
 SUBMIT, FAIL = 0, 3
 
 
-def build(window_us: int, horizon_us: int, out_path: Path, min_samples: int) -> dict:
+def build(
+    window_us: int, horizon_us: int, out_path: Path, min_samples: int,
+    task_events_path: Path | None = None, task_usage_path: Path | None = None,
+) -> dict:
+    # task_events_path/task_usage_path default to the real processed data
+    # but are overridable so tests can point at small synthetic parquet
+    # files instead of the (gitignored, 66M+ row) real output.
+    task_events_path = task_events_path or (PROC / "task_events.parquet")
+    task_usage_path = task_usage_path or (PROC / "task_usage.parquet")
+
     # start_time is Int64 microseconds, not a Datetime -- group_by_dynamic
     # needs the integer-duration suffix ("Ni") rather than a calendar unit
     # ("30m") to bucket a plain numeric index column.
     window = f"{window_us}i"
-    task_events = pl.scan_parquet(PROC / "task_events.parquet").select(
+    task_events = pl.scan_parquet(task_events_path).select(
         "time", "job_id", "task_index", "event_type",
         "cpu_request", "memory_request", "disk_space_request",
         "scheduling_class", "priority",
@@ -69,7 +78,7 @@ def build(window_us: int, horizon_us: int, out_path: Path, min_samples: int) -> 
     )
 
     usage = (
-        pl.scan_parquet(PROC / "task_usage.parquet")
+        pl.scan_parquet(task_usage_path)
         .select(
             "job_id", "task_index", "start_time", "cpu_rate",
             "canonical_memory_usage", "maximum_memory_usage",

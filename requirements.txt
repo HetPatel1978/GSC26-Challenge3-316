@@ -21,3 +21,6 @@ matplotlib
 
 # dashboard
 streamlit
+
+# testing
+pytest
